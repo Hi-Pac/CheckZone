@@ -377,6 +377,8 @@
         const checkEmployeeExists = async (uuid) => {
             try {
                 const { data, error } = await supabaseClient
+                    .from('employees')
+                    .select('id')
                     .eq('uuid', uuid)
                     .limit(1);
                 if (error) throw error;
