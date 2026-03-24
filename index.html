@@ -133,6 +133,12 @@
                 <h2 class="text-xl font-semibold mb-3">جاري التحقق من الموقع...</h2>
                 <p id="location-status" class="text-gray-600 dark:text-gray-400 text-center mb-4">يرجى السماح بالوصول إلى الموقع الجغرافي</p>
                 <div class="loading-spinner"></div>
+                <div class="mt-8">
+                    <a href="admin.html" class="text-xs text-gray-400 dark:text-gray-600 hover:text-primary dark:hover:text-primary transition flex items-center gap-1">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>دخول المدير</span>
+                    </a>
+                </div>
             </div>
             
             <div id="attendance-section" class="hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md mx-auto">
@@ -168,6 +174,12 @@
                         <span id="telegram-status">-</span>
                     </div>
                 </div>
+                <div class="mt-4 text-center">
+                    <a href="admin.html" class="text-xs text-gray-400 dark:text-gray-600 hover:text-primary dark:hover:text-primary transition inline-flex items-center gap-1">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>دخول المدير</span>
+                    </a>
+                </div>
             </div>
         </main>
     </div>
@@ -188,7 +200,7 @@
         //   SUPABASE_ANON_KEY → Project Settings → API → anon/public key
         const SUPABASE_URL      = 'https://YOUR_PROJECT_REF.supabase.co'; // Replace
         const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                        // Replace
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ── Telegram Bot configuration ────────────────────────────────────────────
         const TELEGRAM_BOT_TOKEN = ''; // Replace with your Telegram bot token
@@ -364,9 +376,7 @@
         // Check if employee exists in Supabase
         const checkEmployeeExists = async (uuid) => {
             try {
-                const { data, error } = await supabase
-                    .from('employees')
-                    .select('id')
+                const { data, error } = await supabaseClient
                     .eq('uuid', uuid)
                     .limit(1);
                 if (error) throw error;
@@ -380,7 +390,7 @@
         // Get employee name from Supabase
         const getEmployeeName = async (uuid) => {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('employees')
                     .select('name')
                     .eq('uuid', uuid)
@@ -396,7 +406,7 @@
         // Register employee in Supabase
         const registerEmployee = async (uuid, name) => {
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('employees')
                     .insert({ uuid, name });
                 if (error) throw error;
@@ -410,7 +420,7 @@
         // Log attendance record to Supabase
         const logAttendance = async (data) => {
             try {
-                const { data: inserted, error } = await supabase
+                const { data: inserted, error } = await supabaseClient
                     .from('attendance')
                     .insert({
                         uuid:        data.uuid,
@@ -438,7 +448,7 @@
             if (type !== 'انصراف') return null;
             
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('attendance')
                     .select('timestamp')
                     .eq('uuid', uuid)
@@ -461,7 +471,7 @@
         // Get last attendance record from Supabase
         const getLastAttendanceRecord = async (uuid) => {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('attendance')
                     .select('*')
                     .eq('uuid', uuid)
