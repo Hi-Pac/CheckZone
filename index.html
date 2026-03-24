@@ -8,9 +8,8 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <!-- Supabase JS SDK v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -174,51 +173,36 @@
     </div>
     
     <script>
-        // Check for dark mode preference
+        // ── Dark mode ────────────────────────────────────────────────────────────
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
-        
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-            if (event.matches) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            document.documentElement.classList.toggle('dark', event.matches);
         });
-        
-        // Firebase configuration
-         // Firebase configuration
-        const firebaseConfig = {
-          apiKey: "AIzaSyBz3vodmnTMHpTJ1fXcmjOnmfgU0DkqnIo",
-          authDomain: "attendance-fd328.firebaseapp.com",
-          projectId: "attendance-fd328",
-          storageBucket: "attendance-fd328.firebasestorage.app",
-          messagingSenderId: "254552859337",
-          appId: "1:254552859337:web:1f49c2e5efbd651f32e318",
-          measurementId: "G-DNW0R0DPJ8"
-        };
-        
-        // Telegram Bot configuration
-        const TELEGRAM_BOT_TOKEN = "7294031259:AAFlSX4Yvnk2mCOLUy__gc4f4GC1wLSwfAo"; // Replace with your Telegram bot token
-        const TELEGRAM_CHAT_ID = "1283637307"; // Replace with your chat ID
-        
-        // Company office location coordinates
-        const COMPANY_LATITUDE = 30.8101407; // Replace with your office latitude
+
+        // ── Supabase configuration ────────────────────────────────────────────────
+        // Replace these two values with your Supabase project credentials.
+        // Find them at: https://app.supabase.com → Project Settings → API
+        const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co'; // Replace with your project URL
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                   // Replace with your anon/public key
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ── Telegram Bot configuration ────────────────────────────────────────────
+        const TELEGRAM_BOT_TOKEN = ''; // Replace with your Telegram bot token
+        const TELEGRAM_CHAT_ID    = ''; // Replace with your chat ID
+
+        // ── Company office location ───────────────────────────────────────────────
+        const COMPANY_LATITUDE  = 30.8101407; // Replace with your office latitude
         const COMPANY_LONGITUDE = 30.9977904; // Replace with your office longitude
-        const ALLOWED_RADIUS = 25; // in meters
-        
-        // Global variables
-        let db;
-        let employeeName = '';
-        let deviceUUID = '';
+        const ALLOWED_RADIUS    = 25;         // metres
+
+        // ── Global state ──────────────────────────────────────────────────────────
+        let employeeName    = '';
+        let deviceUUID      = '';
         let currentPosition = null;
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        
-        // IndexedDB for UUID storage
+
+        // ── IndexedDB for UUID storage ────────────────────────────────────────────
         const initIndexedDB = () => {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open('AttendanceAppDB', 1);
@@ -375,39 +359,45 @@
             };
         };
         
-        // Check if employee exists in Firestore
+        // Check if employee exists in Supabase
         const checkEmployeeExists = async (uuid) => {
             try {
-                const snapshot = await db.collection('employees').where('uuid', '==', uuid).get();
-                return !snapshot.empty;
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('uuid', uuid)
+                    .limit(1);
+                if (error) throw error;
+                return data && data.length > 0;
             } catch (error) {
                 console.error('Error checking employee existence:', error);
                 return false;
             }
         };
         
-        // Get employee name from Firestore
+        // Get employee name from Supabase
         const getEmployeeName = async (uuid) => {
             try {
-                const snapshot = await db.collection('employees').where('uuid', '==', uuid).get();
-                if (!snapshot.empty) {
-                    return snapshot.docs[0].data().name;
-                }
-                return null;
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('name')
+                    .eq('uuid', uuid)
+                    .limit(1);
+                if (error) throw error;
+                return data && data.length > 0 ? data[0].name : null;
             } catch (error) {
                 console.error('Error getting employee name:', error);
                 return null;
             }
         };
         
-        // Register employee
+        // Register employee in Supabase
         const registerEmployee = async (uuid, name) => {
             try {
-                await db.collection('employees').add({
-                    uuid,
-                    name,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                const { error } = await supabase
+                    .from('employees')
+                    .insert({ uuid, name });
+                if (error) throw error;
                 return true;
             } catch (error) {
                 console.error('Error registering employee:', error);
@@ -415,59 +405,68 @@
             }
         };
         
-        // Log attendance record
+        // Log attendance record to Supabase
         const logAttendance = async (data) => {
             try {
-                const docRef = await db.collection('attendance').add({
-                    ...data,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                return docRef.id;
+                const { data: inserted, error } = await supabase
+                    .from('attendance')
+                    .insert({
+                        uuid:        data.uuid,
+                        name:        data.name,
+                        date:        data.date,
+                        time:        data.time,
+                        timestamp:   data.timestamp,
+                        type:        data.type,
+                        work_hours:  data.workHours ?? null,
+                        coordinates: data.coordinates,
+                        device_info: data.deviceInfo
+                    })
+                    .select('id')
+                    .single();
+                if (error) throw error;
+                return inserted ? inserted.id : null;
             } catch (error) {
                 console.error('Error logging attendance:', error);
                 return null;
             }
         };
         
-        // Calculate work hours if both check-in and check-out exist for the same day
+        // Calculate work hours (check-in → check-out same day)
         const calculateWorkHours = async (uuid, date, type) => {
             if (type !== 'انصراف') return null;
             
             try {
-                // Get check-in record for the same day
-                const checkInSnapshot = await db.collection('attendance')
-                    .where('uuid', '==', uuid)
-                    .where('date', '==', date)
-                    .where('type', '==', 'حضور')
-                    .orderBy('timestamp', 'desc')
-                    .limit(1)
-                    .get();
+                const { data, error } = await supabase
+                    .from('attendance')
+                    .select('timestamp')
+                    .eq('uuid', uuid)
+                    .eq('date', date)
+                    .eq('type', 'حضور')
+                    .order('timestamp', { ascending: false })
+                    .limit(1);
+                if (error) throw error;
+                if (!data || data.length === 0) return null;
                 
-                if (checkInSnapshot.empty) return null;
-                
-                const checkInTime = checkInSnapshot.docs[0].data().timestamp;
+                const checkInTime  = data[0].timestamp;
                 const checkOutTime = new Date().getTime();
-                
-                // Calculate hours difference
-                const hoursDiff = (checkOutTime - checkInTime) / (1000 * 60 * 60);
-                return parseFloat(hoursDiff.toFixed(2));
+                return parseFloat(((checkOutTime - checkInTime) / (1000 * 60 * 60)).toFixed(2));
             } catch (error) {
                 console.error('Error calculating work hours:', error);
                 return null;
             }
         };
         
-        // Get last attendance record
+        // Get last attendance record from Supabase
         const getLastAttendanceRecord = async (uuid) => {
             try {
-                const snapshot = await db.collection('attendance')
-                    .where('uuid', '==', uuid)
-                    .orderBy('timestamp', 'desc')
-                    .limit(1)
-                    .get();
-                
-                if (snapshot.empty) return null;
-                return snapshot.docs[0].data();
+                const { data, error } = await supabase
+                    .from('attendance')
+                    .select('*')
+                    .eq('uuid', uuid)
+                    .order('timestamp', { ascending: false })
+                    .limit(1);
+                if (error) throw error;
+                return data && data.length > 0 ? data[0] : null;
             } catch (error) {
                 console.error('Error getting last attendance record:', error);
                 return null;
@@ -545,7 +544,7 @@
                     attendanceData.workHours = workHours;
                 }
                 
-                // Log attendance to Firestore
+                // Log attendance to Supabase
                 const recordId = await logAttendance(attendanceData);
                 
                 if (!recordId) {
