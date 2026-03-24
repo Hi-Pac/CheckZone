@@ -182,10 +182,12 @@
         });
 
         // ── Supabase configuration ────────────────────────────────────────────────
-        // Replace these two values with your Supabase project credentials.
-        // Find them at: https://app.supabase.com → Project Settings → API
-        const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co'; // Replace with your project URL
-        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                   // Replace with your anon/public key
+        // ⚠️  DO NOT commit real credentials to version control.
+        // Replace the placeholders below before deploying:
+        //   SUPABASE_URL  → Project Settings → API → Project URL
+        //   SUPABASE_ANON_KEY → Project Settings → API → anon/public key
+        const SUPABASE_URL      = 'https://YOUR_PROJECT_REF.supabase.co'; // Replace
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                        // Replace
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ── Telegram Bot configuration ────────────────────────────────────────────

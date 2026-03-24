@@ -145,12 +145,12 @@ CREATE POLICY "admin_all_settings"
     ON settings FOR ALL
     USING (auth.role() = 'authenticated');
 
--- Seed default settings
+-- Seed default settings (replace coordinates with your actual office location)
 INSERT INTO settings (key, value) VALUES
-    ('company_latitude',  '30.8101407'),
-    ('company_longitude', '30.9977904'),
-    ('allowed_radius_m',  '25'),
-    ('checkin_cutoff_hour', '14'),        -- before this hour → حضور, after → انصراف
-    ('telegram_bot_token', ''),
-    ('telegram_chat_id',   '')
+    ('company_latitude',    '0.0'),         -- Replace with your office latitude
+    ('company_longitude',   '0.0'),         -- Replace with your office longitude
+    ('allowed_radius_m',    '25'),
+    ('checkin_cutoff_hour', '14'),           -- before this hour → حضور, after → انصراف
+    ('telegram_bot_token',  ''),
+    ('telegram_chat_id',    '')
 ON CONFLICT (key) DO NOTHING;
