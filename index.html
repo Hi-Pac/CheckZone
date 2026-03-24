@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تسجيل الحضور والانصراف</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                        dark: '#181818',
+                    },
+                    fontFamily: {
+                        'tajawal': ['Tajawal', 'sans-serif'],
+                    }
+                }
+            },
+            darkMode: 'class',
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .dark body {
+            background-color: #181818;
+            color: #ffffff;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #5D5CDE;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        
+        .dark .loading-spinner {
+            border-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #5D5CDE;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .location-pulse {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(93, 92, 222, 0.3);
+            position: relative;
+            animation: pulse 2s ease-out infinite;
+        }
+        
+        .location-pulse:before {
+            content: '';
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(93, 92, 222, 0.5);
+            top: 10px;
+            left: 10px;
+        }
+        
+        .location-pulse:after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #5D5CDE;
+            top: 20px;
+            left: 20px;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+            70% {
+                transform: scale(1.1);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-dark min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-primary mb-2">نظام تسجيل الحضور والانصراف</h1>
+            <p class="text-gray-600 dark:text-gray-300">تسجيل الحضور والانصراف بناءً على الموقع الجغرافي</p>
+        </header>
+        
+        <main>
+            <div id="loading-section" class="flex flex-col items-center justify-center py-12">
+                <div class="location-pulse mb-6"></div>
+                <h2 class="text-xl font-semibold mb-3">جاري التحقق من الموقع...</h2>
+                <p id="location-status" class="text-gray-600 dark:text-gray-400 text-center mb-4">يرجى السماح بالوصول إلى الموقع الجغرافي</p>
+                <div class="loading-spinner"></div>
+            </div>
+            
+            <div id="attendance-section" class="hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md mx-auto">
+                <div class="text-center mb-6">
+                    <div id="employee-info" class="mb-4">
+                        <h2 class="text-xl font-bold">مرحباً، <span id="employee-name">موظف</span></h2>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            <span id="current-date-time"></span>
+                        </p>
+                    </div>
+                    
+                    <div id="attendance-status" class="py-3 px-4 rounded-md text-white mb-4">
+                        <!-- Status will be inserted here -->
+                    </div>
+                </div>
+                
+                <button id="register-btn" class="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white rounded-md font-medium transition duration-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-fingerprint"></i>
+                    <span id="btn-text">تسجيل</span>
+                </button>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>آخر تسجيل:</span>
+                        <span id="last-record">-</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        <span>الموقع:</span>
+                        <span id="location-info">-</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        <span>حالة الإشعارات:</span>
+                        <span id="telegram-status">-</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Check for dark mode preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+        
+        // Firebase configuration
+         // Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyBz3vodmnTMHpTJ1fXcmjOnmfgU0DkqnIo",
+          authDomain: "attendance-fd328.firebaseapp.com",
+          projectId: "attendance-fd328",
+          storageBucket: "attendance-fd328.firebasestorage.app",
+          messagingSenderId: "254552859337",
+          appId: "1:254552859337:web:1f49c2e5efbd651f32e318",
+          measurementId: "G-DNW0R0DPJ8"
+        };
+        
+        // Telegram Bot configuration
+        const TELEGRAM_BOT_TOKEN = "7294031259:AAFlSX4Yvnk2mCOLUy__gc4f4GC1wLSwfAo"; // Replace with your Telegram bot token
+        const TELEGRAM_CHAT_ID = "1283637307"; // Replace with your chat ID
+        
+        // Company office location coordinates
+        const COMPANY_LATITUDE = 30.8101407; // Replace with your office latitude
+        const COMPANY_LONGITUDE = 30.9977904; // Replace with your office longitude
+        const ALLOWED_RADIUS = 25; // in meters
+        
+        // Global variables
+        let db;
+        let employeeName = '';
+        let deviceUUID = '';
+        let currentPosition = null;
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        
+        // IndexedDB for UUID storage
+        const initIndexedDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('AttendanceAppDB', 1);
+                
+                request.onerror = (event) => {
+                    console.error('IndexedDB error:', event.target.error);
+                    reject('Failed to initialize local database');
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('deviceInfo')) {
+                        db.createObjectStore('deviceInfo', { keyPath: 'id' });
+                    }
+                };
+                
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+            });
+        };
+        
+        // Get or generate UUID
+        const getOrGenerateUUID = async () => {
+            try {
+                const db = await initIndexedDB();
+                const transaction = db.transaction('deviceInfo', 'readwrite');
+                const store = transaction.objectStore('deviceInfo');
+                const request = store.get('device');
+                
+                return new Promise((resolve, reject) => {
+                    request.onerror = (event) => {
+                        reject('Error retrieving UUID');
+                    };
+                    
+                    request.onsuccess = (event) => {
+                        let uuid = event.target.result?.uuid;
+                        
+                        if (!uuid) {
+                            uuid = generateUUID();
+                            store.put({ id: 'device', uuid });
+                        }
+                        
+                        resolve(uuid);
+                    };
+                });
+            } catch (error) {
+                console.error('UUID generation error:', error);
+                return generateUUID(); // Fallback to generating new UUID
+            }
+        };
+        
+        // Generate UUID
+        const generateUUID = () => {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+        
+        // Get current position using Geolocation API
+        const getCurrentPosition = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject('Geolocation is not supported by your browser');
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => resolve(position),
+                    error => reject(`Geolocation error: ${error.message}`),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        };
+        
+        // Calculate distance between two coordinates in kilometers
+        const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            const d = R * c; // Distance in km
+            return d;
+        };
+        
+        const deg2rad = (deg) => {
+            return deg * (Math.PI/180);
+        };
+        
+        // Check if employee is within the allowed radius
+        const isWithinCompanyRadius = (position) => {
+            const distance = getDistanceFromLatLonInKm(
+                position.coords.latitude,
+                position.coords.longitude,
+                COMPANY_LATITUDE,
+                COMPANY_LONGITUDE
+            );
+            
+            // Convert km to meters for comparison
+            return (distance * 1000) <= ALLOWED_RADIUS;
+        };
+        
+        // Format date as YYYY-MM-DD
+        const formatDate = (date) => {
+            const d = date || new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        // Format time as HH:MM:SS
+        const formatTime = (date) => {
+            const d = date || new Date();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        };
+        
+        // Get formatted date and time
+        const getCurrentDateTime = () => {
+            const now = new Date();
+            return {
+                date: formatDate(now),
+                time: formatTime(now),
+                timestamp: now.getTime()
+            };
+        };
+        
+        // Determine attendance type based on current time
+        const determineAttendanceType = () => {
+            const hours = new Date().getHours();
+            
+            if (hours >= 0 && hours < 14) {
+                return 'حضور';
+            } else {
+                return 'انصراف';
+            }
+        };
+        
+        // Get device info
+        const getDeviceInfo = () => {
+            return {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                vendor: navigator.vendor || 'Unknown'
+            };
+        };
+        
+        // Check if employee exists in Firestore
+        const checkEmployeeExists = async (uuid) => {
+            try {
+                const snapshot = await db.collection('employees').where('uuid', '==', uuid).get();
+                return !snapshot.empty;
+            } catch (error) {
+                console.error('Error checking employee existence:', error);
+                return false;
+            }
+        };
+        
+        // Get employee name from Firestore
+        const getEmployeeName = async (uuid) => {
+            try {
+                const snapshot = await db.collection('employees').where('uuid', '==', uuid).get();
+                if (!snapshot.empty) {
+                    return snapshot.docs[0].data().name;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error getting employee name:', error);
+                return null;
+            }
+        };
+        
+        // Register employee
+        const registerEmployee = async (uuid, name) => {
+            try {
+                await db.collection('employees').add({
+                    uuid,
+                    name,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return true;
+            } catch (error) {
+                console.error('Error registering employee:', error);
+                return false;
+            }
+        };
+        
+        // Log attendance record
+        const logAttendance = async (data) => {
+            try {
+                const docRef = await db.collection('attendance').add({
+                    ...data,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return docRef.id;
+            } catch (error) {
+                console.error('Error logging attendance:', error);
+                return null;
+            }
+        };
+        
+        // Calculate work hours if both check-in and check-out exist for the same day
+        const calculateWorkHours = async (uuid, date, type) => {
+            if (type !== 'انصراف') return null;
+            
+            try {
+                // Get check-in record for the same day
+                const checkInSnapshot = await db.collection('attendance')
+                    .where('uuid', '==', uuid)
+                    .where('date', '==', date)
+                    .where('type', '==', 'حضور')
+                    .orderBy('timestamp', 'desc')
+                    .limit(1)
+                    .get();
+                
+                if (checkInSnapshot.empty) return null;
+                
+                const checkInTime = checkInSnapshot.docs[0].data().timestamp;
+                const checkOutTime = new Date().getTime();
+                
+                // Calculate hours difference
+                const hoursDiff = (checkOutTime - checkInTime) / (1000 * 60 * 60);
+                return parseFloat(hoursDiff.toFixed(2));
+            } catch (error) {
+                console.error('Error calculating work hours:', error);
+                return null;
+            }
+        };
+        
+        // Get last attendance record
+        const getLastAttendanceRecord = async (uuid) => {
+            try {
+                const snapshot = await db.collection('attendance')
+                    .where('uuid', '==', uuid)
+                    .orderBy('timestamp', 'desc')
+                    .limit(1)
+                    .get();
+                
+                if (snapshot.empty) return null;
+                return snapshot.docs[0].data();
+            } catch (error) {
+                console.error('Error getting last attendance record:', error);
+                return null;
+            }
+        };
+        
+        // Send Telegram notification
+        const sendTelegramNotification = async (message) => {
+            try {
+                if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+                    console.warn('Telegram bot token or chat ID not configured');
+                    return false;
+                }
+                
+                const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: TELEGRAM_CHAT_ID,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+                
+                const data = await response.json();
+                return data.ok === true;
+            } catch (error) {
+                console.error('Error sending Telegram notification:', error);
+                return false;
+            }
+        };
+        
+        // Handle attendance registration
+        const handleAttendanceRegistration = async () => {
+            try {
+                // Disable button during processing
+                const registerBtn = document.getElementById('register-btn');
+                registerBtn.disabled = true;
+                registerBtn.classList.add('opacity-50');
+                registerBtn.innerHTML = '<div class="loading-spinner mr-2"></div> جاري التسجيل...';
+                
+                if (!currentPosition) {
+                    throw new Error('لم يتم تحديد الموقع بعد');
+                }
+                
+                // Check if within company radius
+                if (!isWithinCompanyRadius(currentPosition)) {
+                    throw new Error('أنت خارج نطاق الشركة المسموح به');
+                }
+                
+                const { date, time, timestamp } = getCurrentDateTime();
+                const type = determineAttendanceType();
+                const workHours = await calculateWorkHours(deviceUUID, date, type);
+                
+                // Prepare attendance data
+                const attendanceData = {
+                    uuid: deviceUUID,
+                    name: employeeName,
+                    date,
+                    time,
+                    timestamp,
+                    type,
+                    coordinates: {
+                        latitude: currentPosition.coords.latitude,
+                        longitude: currentPosition.coords.longitude,
+                        accuracy: currentPosition.coords.accuracy
+                    },
+                    deviceInfo: getDeviceInfo()
+                };
+                
+                if (workHours !== null) {
+                    attendanceData.workHours = workHours;
+                }
+                
+                // Log attendance to Firestore
+                const recordId = await logAttendance(attendanceData);
+                
+                if (!recordId) {
+                    throw new Error('فشل في تسجيل الحضور/الانصراف');
+                }
+                
+                // Send Telegram notification
+                const notificationMessage = `
+<b>🔔 تسجيل ${type}</b>
+<b>الموظف:</b> ${employeeName}
+<b>التاريخ:</b> ${date}
+<b>الوقت:</b> ${time}
+<b>الموقع:</b> ${currentPosition.coords.latitude.toFixed(6)}, ${currentPosition.coords.longitude.toFixed(6)}
+${workHours !== null ? `<b>ساعات العمل:</b> ${workHours} ساعة` : ''}
+`;
+                
+                try {
+                    const telegramSent = await sendTelegramNotification(notificationMessage);
+                    console.log('Telegram notification sent:', telegramSent);
+                    
+                    // Update Telegram status in UI - with null check
+                    const telegramStatusEl = document.getElementById('telegram-status');
+                    if (telegramStatusEl) {
+                        if (telegramSent) {
+                            telegramStatusEl.innerHTML = 
+                                '<span class="text-success dark:text-green-400">✓ تم إرسال إشعار</span>';
+                        } else {
+                            telegramStatusEl.innerHTML = 
+                                '<span class="text-warning dark:text-yellow-400">⚠️ تعذر إرسال الإشعار</span>';
+                        }
+                    }
+                } catch (telegramError) {
+                    console.error('Failed to send Telegram notification:', telegramError);
+                    
+                    // Add null check
+                    const telegramStatusEl = document.getElementById('telegram-status');
+                    if (telegramStatusEl) {
+                        telegramStatusEl.innerHTML = 
+                            '<span class="text-danger dark:text-red-400">✗ فشل إرسال الإشعار</span>';
+                    }
+                    // Continue execution, as this is not critical for attendance
+                }
+                
+                // Show success message
+                Swal.fire({
+                    title: 'تم بنجاح!',
+                    text: `تم تسجيل ${type} بنجاح`,
+                    icon: 'success',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#5D5CDE'
+                });
+                
+                // Trigger confetti effect
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                
+                // Update UI
+                updateLastRecordInfo();
+                updateAttendanceStatusUI(type);
+                
+            } catch (error) {
+                console.error('Attendance registration error:', error);
+                
+                Swal.fire({
+                    title: 'خطأ!',
+                    text: error.message || 'حدث خطأ أثناء تسجيل الحضور/الانصراف',
+                    icon: 'error',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#5D5CDE'
+                });
+            } finally {
+                // Re-enable button
+                const registerBtn = document.getElementById('register-btn');
+                registerBtn.disabled = false;
+                registerBtn.classList.remove('opacity-50');
+                registerBtn.innerHTML = '<i class="fas fa-fingerprint"></i> <span id="btn-text">تسجيل</span>';
+                
+                // Update button text based on attendance type
+                document.getElementById('btn-text').textContent = `تسجيل ${determineAttendanceType()}`;
+            }
+        };
+        
+        // Ask for employee name
+        const promptForEmployeeName = async () => {
+            const { value: name } = await Swal.fire({
+                title: 'مرحباً بك!',
+                input: 'text',
+                inputLabel: 'يرجى إدخال اسمك الكامل',
+                inputPlaceholder: 'الاسم الكامل',
+                confirmButtonText: 'تسجيل',
+                confirmButtonColor: '#5D5CDE',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                inputValidator: (value) => {
+                    if (!value || value.trim().length < 3) {
+                        return 'يرجى إدخال اسم صحيح (3 أحرف على الأقل)';
+                    }
+                }
+            });
+            
+            return name.trim();
+        };
+        
+        // Update UI with attendance status
+        const updateAttendanceStatusUI = (type) => {
+            const statusElement = document.getElementById('attendance-status');
+            const now = new Date();
+            const hours = now.getHours();
+            
+            if (type === 'حضور') {
+                statusElement.className = 'py-3 px-4 rounded-md bg-success text-white mb-4';
+                statusElement.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> وضع الدوام: حضور';
+            } else {
+                statusElement.className = 'py-3 px-4 rounded-md bg-warning text-white mb-4';
+                statusElement.innerHTML = '<i class="fas fa-sign-out-alt mr-2"></i> وضع الدوام: انصراف';
+            }
+        };
+        
+        // Update last record information in UI
+        const updateLastRecordInfo = async () => {
+            const lastRecord = await getLastAttendanceRecord(deviceUUID);
+            
+            if (lastRecord) {
+                const lastRecordEl = document.getElementById('last-record');
+                if (lastRecordEl) {
+                    lastRecordEl.textContent = `${lastRecord.type} - ${lastRecord.time}`;
+                }
+            }
+        };
+        
+        // Update date and time in UI with both Hijri and Gregorian dates
+        const updateDateTime = () => {
+            const now = new Date();
+            
+            // Hijri date (Islamic calendar)
+            const hijriOptions = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                calendar: 'islamic'
+            };
+            const hijriDate = now.toLocaleDateString('ar-SA', hijriOptions);
+            
+            // Gregorian date (Western calendar)
+            const gregorianOptions = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                calendar: 'gregory'
+            };
+            const gregorianDate = now.toLocaleDateString('ar-SA', gregorianOptions);
+            
+            // Format: "Hijri date / Gregorian date, Time"
+            const timeOptions = { hour: '2-digit', minute: '2-digit' };
+            const timeStr = now.toLocaleTimeString('ar-SA', timeOptions);
+            
+            // Get date-time element and ensure it exists
+            const dateTimeEl = document.getElementById('current-date-time');
+            if (dateTimeEl) {
+                dateTimeEl.innerHTML = `
+                    <div>${hijriDate}</div>
+                    <div class="text-gray-600 dark:text-gray-300 mt-1">${gregorianDate} | ${timeStr}</div>
+                `;
+            }
+        };
+        
+        // Initialize the application
+        const initApp = async () => {
+            try {
+                updateDateTime();
+                setInterval(updateDateTime, 60000); // Update time every minute
+                
+                const locationStatusEl = document.getElementById('location-status');
+                if (locationStatusEl) {
+                    locationStatusEl.textContent = 'جاري تحديد الموقع الجغرافي...';
+                }
+                
+                // Get UUID
+                deviceUUID = await getOrGenerateUUID();
+                console.log('Device UUID:', deviceUUID);
+                
+                // Get current position
+                currentPosition = await getCurrentPosition();
+                console.log('Position:', currentPosition.coords.latitude, currentPosition.coords.longitude);
+                
+                const locationInfoEl = document.getElementById('location-info');
+                if (locationInfoEl) {
+                    locationInfoEl.textContent = `${currentPosition.coords.latitude.toFixed(6)}, ${currentPosition.coords.longitude.toFixed(6)}`;
+                }
+                
+                // Check if employee exists
+                const employeeExists = await checkEmployeeExists(deviceUUID);
+                
+                if (!employeeExists) {
+                    // New employee, ask for name
+                    employeeName = await promptForEmployeeName();
+                    
+                    // Register new employee
+                    await registerEmployee(deviceUUID, employeeName);
+                } else {
+                    // Existing employee, get name
+                    employeeName = await getEmployeeName(deviceUUID);
+                }
+                
+                // Update UI with employee name
+                const employeeNameEl = document.getElementById('employee-name');
+                if (employeeNameEl) {
+                    employeeNameEl.textContent = employeeName;
+                }
+                
+                // Update last record information
+                await updateLastRecordInfo();
+                
+                // Update attendance status UI
+                updateAttendanceStatusUI(determineAttendanceType());
+                
+                // Update button text
+                const btnTextEl = document.getElementById('btn-text');
+                if (btnTextEl) {
+                    btnTextEl.textContent = `تسجيل ${determineAttendanceType()}`;
+                }
+                
+                // Show attendance section, hide loading section
+                document.getElementById('loading-section').classList.add('hidden');
+                document.getElementById('attendance-section').classList.remove('hidden');
+                
+                // Add event listener to register button
+                document.getElementById('register-btn').addEventListener('click', handleAttendanceRegistration);
+                
+            } catch (error) {
+                console.error('App initialization error:', error);
+                
+                // Show error message
+                Swal.fire({
+                    title: 'خطأ في تهيئة التطبيق',
+                    text: error.message || 'حدث خطأ أثناء تهيئة التطبيق',
+                    icon: 'error',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#5D5CDE'
+                });
+                
+                const locationStatusEl = document.getElementById('location-status');
+                if (locationStatusEl) {
+                    locationStatusEl.textContent = `خطأ: ${error.message || 'فشل في تحديد الموقع'}`;
+                    locationStatusEl.classList.add('text-danger');
+                }
+            }
+        };
+        
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
