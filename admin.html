@@ -131,6 +131,8 @@
         const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
+
         // Check existing session
         (function checkSession() {
             try {
@@ -150,7 +152,7 @@
             const { data, error } = await supabase.from('settings').select('admin_username, admin_password').eq('id', 1).single();
             if (error || !data) throw new Error('تعذر الاتصال بقاعدة البيانات');
             if (data.admin_username === username && data.admin_password === password) {
-                const session = { authenticated: true, username, expiry: Date.now() + 8 * 60 * 60 * 1000 };
+                const session = { authenticated: true, username, expiry: Date.now() + SESSION_DURATION_MS };
                 localStorage.setItem('adminSession', JSON.stringify(session));
                 return true;
             }
