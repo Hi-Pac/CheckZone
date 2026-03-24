@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الجزاءات</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                        dark: '#181818',
+                    },
+                    fontFamily: { 'tajawal': ['Tajawal', 'sans-serif'] }
+                }
+            },
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        body { font-family: 'Tajawal', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
+
+<script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+    }
+</script>
+
+<!-- Navigation -->
+<nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-primary"><i class="fas fa-shield-alt ml-2"></i>لوحة التحكم</h1>
+        </div>
+        <div class="flex items-center gap-3 text-sm flex-wrap">
+            <a href="admin-dashboard.html" class="text-gray-600 hover:text-primary dark:text-gray-300">الحضور</a>
+            <a href="salaries.html" class="text-gray-600 hover:text-primary dark:text-gray-300">المرتبات</a>
+            <a href="salary-settings.html" class="text-gray-600 hover:text-primary dark:text-gray-300">إعداد الرواتب</a>
+            <a href="deduction-settings.html" class="text-gray-600 hover:text-primary dark:text-gray-300">الخصومات</a>
+            <a href="penalties.html" class="text-primary font-bold dark:text-primary">الجزاءات</a>
+            <a href="rewards.html" class="text-gray-600 hover:text-primary dark:text-gray-300">المكافآت</a>
+            <button onclick="logout()" class="text-danger hover:text-red-700"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- Page Header -->
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <i class="fas fa-gavel text-danger ml-2"></i>إدارة الجزاءات
+        </h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">إضافة وإدارة الجزاءات المالية للموظفين</p>
+    </div>
+
+    <!-- Add Penalty Form Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-5">
+            <i class="fas fa-gavel text-danger ml-2"></i>إضافة جزاء جديد
+        </h3>
+        <form id="addPenaltyForm" onsubmit="handleAddPenalty(event)" novalidate>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Employee Dropdown -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الموظف</label>
+                    <select id="employeeSelect"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent"
+                        required>
+                        <option value="">اختر موظفاً</option>
+                    </select>
+                </div>
+                <!-- Reason -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">السبب</label>
+                    <input type="text" id="penaltyReason" placeholder="سبب الجزاء"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent"
+                        required>
+                </div>
+                <!-- Amount -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المبلغ (ج.م)</label>
+                    <input type="number" id="penaltyAmount" min="0" step="0.01" placeholder="0.00"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent"
+                        required>
+                </div>
+                <!-- Date -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">التاريخ</label>
+                    <input type="date" id="penaltyDate"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent"
+                        required>
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="submit"
+                    class="bg-danger hover:bg-red-600 text-white font-medium px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                    <i class="fas fa-plus"></i>
+                    إضافة الجزاء
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+            <i class="fas fa-filter text-primary ml-2"></i>تصفية النتائج
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Search by name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">بحث باسم الموظف</label>
+                <input type="text" id="searchName" placeholder="ابحث باسم الموظف..."
+                    oninput="applyClientFilter()"
+                    class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <!-- Date From -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">من تاريخ</label>
+                <input type="date" id="filterDateFrom"
+                    class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <!-- Date To -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">إلى تاريخ</label>
+                <input type="date" id="filterDateTo"
+                    class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <!-- Buttons -->
+            <div class="flex items-end gap-2">
+                <button onclick="applyDateFilter()"
+                    class="flex-1 bg-primary hover:bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-search"></i>تطبيق
+                </button>
+                <button onclick="resetFilters()"
+                    class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-undo"></i>إعادة تعيين
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Penalties Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">
+                <i class="fas fa-list text-primary ml-2"></i>قائمة الجزاءات
+            </h3>
+            <span id="penaltiesCount" class="text-sm text-gray-500 dark:text-gray-400"></span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">#</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">اسم الموظف</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">السبب</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">المبلغ (ج.م)</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">التاريخ</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="penaltiesTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-gray-400 dark:text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
+                            جارٍ التحميل...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Per-Employee Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+            <i class="fas fa-chart-bar text-warning ml-2"></i>ملخص الجزاءات لكل موظف
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">اسم الموظف</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">إجمالي الجزاءات (ج.م)</th>
+                        <th class="text-right py-3 px-3 font-semibold text-gray-600 dark:text-gray-400">عدد الجزاءات</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryTableBody">
+                    <tr>
+                        <td colspan="3" class="text-center py-6 text-gray-400 dark:text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>
+                            جارٍ التحميل...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="text-center py-6 mt-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+    <a href="index.html" class="hover:text-primary transition-colors duration-200">
+        <i class="fas fa-home ml-1"></i>صفحة الحضور الرئيسية
+    </a>
+</footer>
+
+<script>
+    // ── Supabase ──────────────────────────────────────────────────────────────
+    const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    function checkAdminAuth() {
+        const session = localStorage.getItem('adminSession');
+        if (!session) { window.location.href = 'admin.html'; return false; }
+        try {
+            const data = JSON.parse(session);
+            if (!data.authenticated || !data.expiry || Date.now() > data.expiry) {
+                localStorage.removeItem('adminSession');
+                window.location.href = 'admin.html';
+                return false;
+            }
+            return true;
+        } catch(e) { window.location.href = 'admin.html'; return false; }
+    }
+
+    function logout() {
+        localStorage.removeItem('adminSession');
+        window.location.href = 'admin.html';
+    }
+
+    // ── Supabase helpers ──────────────────────────────────────────────────────
+    async function loadPenalties(filters = {}) {
+        let query = supabase.from('penalties').select('*').order('date', { ascending: false });
+        if (filters.dateFrom) query = query.gte('date', filters.dateFrom);
+        if (filters.dateTo) query = query.lte('date', filters.dateTo);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    }
+
+    async function addPenalty(data) {
+        const { error } = await supabase.from('penalties').insert(data);
+        return !error;
+    }
+
+    async function updatePenalty(id, data) {
+        const { error } = await supabase.from('penalties').update(data).eq('id', id);
+        return !error;
+    }
+
+    async function deletePenalty(id) {
+        const { error } = await supabase.from('penalties').delete().eq('id', id);
+        return !error;
+    }
+
+    async function loadEmployees() {
+        const { data } = await supabase.from('employees').select('id, name').order('name');
+        return data || [];
+    }
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let allPenalties = [];
+    let currentDateFilters = {};
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        if (!checkAdminAuth()) return;
+
+        // Set today as default date
+        document.getElementById('penaltyDate').value = todayISO();
+
+        await Promise.all([initEmployeeDropdown(), refreshPenalties()]);
+    });
+
+    function todayISO() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    // ── Employees Dropdown ────────────────────────────────────────────────────
+    async function initEmployeeDropdown() {
+        const select = document.getElementById('employeeSelect');
+        try {
+            const employees = await loadEmployees();
+            employees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.name;
+                opt.textContent = emp.name;
+                select.appendChild(opt);
+            });
+        } catch {
+            // Non-critical: dropdown stays with default option
+        }
+    }
+
+    // ── Load & Render ─────────────────────────────────────────────────────────
+    async function refreshPenalties(filters = currentDateFilters) {
+        showTableLoading();
+        try {
+            allPenalties = await loadPenalties(filters);
+            applyClientFilter();
+        } catch (err) {
+            showTableError();
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ في التحميل',
+                text: 'تعذّر تحميل بيانات الجزاءات. يرجى المحاولة مرة أخرى.',
+                confirmButtonText: 'حسناً',
+                confirmButtonColor: '#EF4444',
+            });
+        }
+    }
+
+    function applyClientFilter() {
+        const search = (document.getElementById('searchName').value || '').trim().toLowerCase();
+        const filtered = search
+            ? allPenalties.filter(p => (p.employee_name || '').toLowerCase().includes(search))
+            : allPenalties;
+        renderTable(filtered);
+        renderSummary(filtered);
+    }
+
+    function renderTable(penalties) {
+        const tbody = document.getElementById('penaltiesTableBody');
+        const countEl = document.getElementById('penaltiesCount');
+
+        if (!penalties.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-10 text-gray-400 dark:text-gray-500">
+                        <i class="fas fa-inbox text-3xl mb-2 block"></i>
+                        لا توجد جزاءات مسجلة
+                    </td>
+                </tr>`;
+            countEl.textContent = '';
+            return;
+        }
+
+        countEl.textContent = `إجمالي السجلات: ${penalties.length}`;
+        tbody.innerHTML = penalties.map((p, idx) => `
+            <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <td class="py-3 px-3 text-gray-500 dark:text-gray-400">${idx + 1}</td>
+                <td class="py-3 px-3 font-medium text-gray-800 dark:text-gray-100">${escHtml(p.employee_name || '—')}</td>
+                <td class="py-3 px-3 text-gray-600 dark:text-gray-300">${escHtml(p.reason || '—')}</td>
+                <td class="py-3 px-3">
+                    <span class="inline-flex items-center gap-1 text-danger font-semibold">
+                        <i class="fas fa-minus-circle text-xs"></i>
+                        ${Number(p.amount || 0).toFixed(2)}
+                    </span>
+                </td>
+                <td class="py-3 px-3 text-gray-600 dark:text-gray-300">${formatDate(p.date)}</td>
+                <td class="py-3 px-3">
+                    <div class="flex items-center gap-2">
+                        <button onclick="openEditModal(${JSON.stringify(p).replace(/"/g, '&quot;')})"
+                            class="inline-flex items-center gap-1 bg-primary hover:bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg transition-colors duration-200">
+                            <i class="fas fa-pencil-alt"></i>تعديل
+                        </button>
+                        <button onclick="confirmDelete(${p.id})"
+                            class="inline-flex items-center gap-1 bg-danger hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg transition-colors duration-200">
+                            <i class="fas fa-trash"></i>حذف
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function renderSummary(penalties) {
+        const tbody = document.getElementById('summaryTableBody');
+        if (!penalties.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-center py-6 text-gray-400 dark:text-gray-500">
+                        لا توجد بيانات لعرضها
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        const map = {};
+        penalties.forEach(p => {
+            const name = p.employee_name || 'غير محدد';
+            if (!map[name]) map[name] = { total: 0, count: 0 };
+            map[name].total += Number(p.amount || 0);
+            map[name].count += 1;
+        });
+
+        const rows = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
+        tbody.innerHTML = rows.map(([name, stats]) => `
+            <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <td class="py-3 px-3 font-medium text-gray-800 dark:text-gray-100">${escHtml(name)}</td>
+                <td class="py-3 px-3 text-danger font-semibold">${stats.total.toFixed(2)} ج.م</td>
+                <td class="py-3 px-3">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-100 dark:bg-red-900 text-danger text-xs font-bold">
+                        ${stats.count}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function showTableLoading() {
+        document.getElementById('penaltiesTableBody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-10 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
+                    جارٍ التحميل...
+                </td>
+            </tr>`;
+        document.getElementById('summaryTableBody').innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center py-6 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-xl mb-2 block"></i>
+                    جارٍ التحميل...
+                </td>
+            </tr>`;
+    }
+
+    function showTableError() {
+        document.getElementById('penaltiesTableBody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-10 text-danger">
+                    <i class="fas fa-exclamation-circle text-2xl mb-2 block"></i>
+                    حدث خطأ أثناء تحميل البيانات
+                </td>
+            </tr>`;
+    }
+
+    // ── Add Penalty ───────────────────────────────────────────────────────────
+    async function handleAddPenalty(e) {
+        e.preventDefault();
+        const employeeName = document.getElementById('employeeSelect').value.trim();
+        const reason = document.getElementById('penaltyReason').value.trim();
+        const amount = parseFloat(document.getElementById('penaltyAmount').value);
+        const date = document.getElementById('penaltyDate').value;
+
+        if (!employeeName || !reason || !date) {
+            Swal.fire({ icon: 'warning', title: 'بيانات ناقصة', text: 'يرجى ملء جميع الحقول المطلوبة.', confirmButtonText: 'حسناً', confirmButtonColor: '#5D5CDE' });
+            return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+            Swal.fire({ icon: 'warning', title: 'مبلغ غير صالح', text: 'يجب أن يكون المبلغ أكبر من صفر.', confirmButtonText: 'حسناً', confirmButtonColor: '#5D5CDE' });
+            return;
+        }
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i>جارٍ الإضافة...';
+
+        const ok = await addPenalty({ employee_name: employeeName, reason, amount, date });
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus"></i>إضافة الجزاء';
+
+        if (ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تمت الإضافة',
+                text: 'تم إضافة الجزاء بنجاح.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+            e.target.reset();
+            document.getElementById('employeeSelect').value = '';
+            document.getElementById('penaltyDate').value = todayISO();
+            await refreshPenalties();
+        } else {
+            Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذّر إضافة الجزاء. يرجى المحاولة مرة أخرى.', confirmButtonText: 'حسناً', confirmButtonColor: '#EF4444' });
+        }
+    }
+
+    // ── Edit Penalty ──────────────────────────────────────────────────────────
+    async function openEditModal(penalty) {
+        const { value: formValues } = await Swal.fire({
+            title: 'تعديل الجزاء',
+            html: `
+                <div style="text-align:right; font-family:'Tajawal',sans-serif;">
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#374151;">اسم الموظف</label>
+                        <input id="swal-employee" class="swal2-input" style="margin:0;width:100%;" value="${escAttr(penalty.employee_name || '')}">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#374151;">السبب</label>
+                        <input id="swal-reason" class="swal2-input" style="margin:0;width:100%;" value="${escAttr(penalty.reason || '')}">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#374151;">المبلغ (ج.م)</label>
+                        <input id="swal-amount" type="number" min="0" step="0.01" class="swal2-input" style="margin:0;width:100%;" value="${Number(penalty.amount || 0).toFixed(2)}">
+                    </div>
+                    <div style="margin-bottom:4px;">
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#374151;">التاريخ</label>
+                        <input id="swal-date" type="date" class="swal2-input" style="margin:0;width:100%;" value="${escAttr(penalty.date || '')}">
+                    </div>
+                </div>`,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'حفظ التعديلات',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#5D5CDE',
+            cancelButtonColor: '#9CA3AF',
+            preConfirm: () => {
+                const empName = document.getElementById('swal-employee').value.trim();
+                const reason = document.getElementById('swal-reason').value.trim();
+                const amount = parseFloat(document.getElementById('swal-amount').value);
+                const date = document.getElementById('swal-date').value;
+                if (!empName || !reason || !date) {
+                    Swal.showValidationMessage('يرجى ملء جميع الحقول.');
+                    return false;
+                }
+                if (isNaN(amount) || amount <= 0) {
+                    Swal.showValidationMessage('يجب أن يكون المبلغ أكبر من صفر.');
+                    return false;
+                }
+                return { employee_name: empName, reason, amount, date };
+            }
+        });
+
+        if (!formValues) return;
+
+        const ok = await updatePenalty(penalty.id, formValues);
+        if (ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم التعديل',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+            await refreshPenalties();
+        } else {
+            Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذّر تعديل الجزاء.', confirmButtonText: 'حسناً', confirmButtonColor: '#EF4444' });
+        }
+    }
+
+    // ── Delete Penalty ────────────────────────────────────────────────────────
+    async function confirmDelete(id) {
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'تأكيد الحذف',
+            text: 'هل أنت متأكد من حذف هذا الجزاء؟',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#9CA3AF',
+        });
+
+        if (!result.isConfirmed) return;
+
+        const ok = await deletePenalty(id);
+        if (ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم الحذف',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+            await refreshPenalties();
+        } else {
+            Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذّر حذف الجزاء.', confirmButtonText: 'حسناً', confirmButtonColor: '#EF4444' });
+        }
+    }
+
+    // ── Filters ───────────────────────────────────────────────────────────────
+    async function applyDateFilter() {
+        currentDateFilters = {
+            dateFrom: document.getElementById('filterDateFrom').value || undefined,
+            dateTo: document.getElementById('filterDateTo').value || undefined,
+        };
+        await refreshPenalties(currentDateFilters);
+    }
+
+    function resetFilters() {
+        document.getElementById('searchName').value = '';
+        document.getElementById('filterDateFrom').value = '';
+        document.getElementById('filterDateTo').value = '';
+        currentDateFilters = {};
+        refreshPenalties({});
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function escAttr(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '—';
+        try {
+            const [y, m, d] = dateStr.split('-');
+            return `${d}/${m}/${y}`;
+        } catch {
+            return dateStr;
+        }
+    }
+</script>
+</body>
+</html>
