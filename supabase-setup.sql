@@ -7,11 +7,13 @@
 -- 1. EMPLOYEES
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS employees (
-    id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    uuid        text        NOT NULL UNIQUE,          -- device UUID
-    name        text        NOT NULL,
-    department  text,
-    created_at  timestamptz NOT NULL DEFAULT now()
+    id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    uuid           text        NOT NULL UNIQUE,          -- device UUID
+    name           text        NOT NULL,
+    department     text,
+    hourly_rate    numeric     NOT NULL DEFAULT 0,       -- ج.م per hour
+    monthly_salary numeric     NOT NULL DEFAULT 0,       -- ج.م per month
+    created_at     timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
@@ -23,6 +25,11 @@ CREATE POLICY "anon_select_employees"
 
 CREATE POLICY "anon_insert_employees"
     ON employees FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "admin_update_employees"
+    ON employees FOR UPDATE
+    USING (true)
     WITH CHECK (true);
 
 -- ────────────────────────────────────────────────────────────
@@ -127,12 +134,22 @@ CREATE POLICY "admin_all_rewards"
     USING (auth.role() = 'authenticated');
 
 -- ────────────────────────────────────────────────────────────
--- 6. SETTINGS
+-- 6. SETTINGS  (single-row configuration table)
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS settings (
-    key        text PRIMARY KEY,
-    value      text NOT NULL,
-    updated_at timestamptz NOT NULL DEFAULT now()
+    id                  integer     PRIMARY KEY DEFAULT 1,   -- always row id=1
+    work_start_time     text        NOT NULL DEFAULT '08:00',
+    work_end_time       text        NOT NULL DEFAULT '17:00',
+    admin_username      text        NOT NULL DEFAULT 'admin',
+    admin_password      text        NOT NULL DEFAULT 'admin123',
+    company_latitude    numeric     NOT NULL DEFAULT 0,      -- Replace with office latitude
+    company_longitude   numeric     NOT NULL DEFAULT 0,      -- Replace with office longitude
+    allowed_radius_m    integer     NOT NULL DEFAULT 25,
+    checkin_cutoff_hour integer     NOT NULL DEFAULT 14,     -- before → حضور, after → انصراف
+    telegram_bot_token  text        NOT NULL DEFAULT '',
+    telegram_chat_id    text        NOT NULL DEFAULT '',
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT settings_single_row CHECK (id = 1)
 );
 
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
@@ -143,14 +160,9 @@ CREATE POLICY "anon_select_settings"
 
 CREATE POLICY "admin_all_settings"
     ON settings FOR ALL
-    USING (auth.role() = 'authenticated');
+    USING (true)
+    WITH CHECK (true);
 
--- Seed default settings (replace coordinates with your actual office location)
-INSERT INTO settings (key, value) VALUES
-    ('company_latitude',    '0.0'),         -- Replace with your office latitude
-    ('company_longitude',   '0.0'),         -- Replace with your office longitude
-    ('allowed_radius_m',    '25'),
-    ('checkin_cutoff_hour', '14'),           -- before this hour → حضور, after → انصراف
-    ('telegram_bot_token',  ''),
-    ('telegram_chat_id',    '')
-ON CONFLICT (key) DO NOTHING;
+-- Seed the single settings row
+INSERT INTO settings (id) VALUES (1)
+ON CONFLICT (id) DO NOTHING;
