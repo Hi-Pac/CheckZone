@@ -61,9 +61,9 @@ router.get('/salary/:employeeId', authMiddleware, async (req, res) => {
       }
     }
 
-    const daysInMonth = new Date(year, month, 0).getDate();
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
     const weekdays = Array.from({ length: daysInMonth }, (_, i) => {
-      const d = new Date(year, month - 1, i + 1);
+      const d = new Date(parseInt(year), parseInt(month) - 1, i + 1);
       return d.getDay() !== 5 && d.getDay() !== 6; // exclude Friday and Saturday
     }).filter(Boolean).length;
 

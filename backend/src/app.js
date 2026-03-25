@@ -50,6 +50,7 @@ async function initDefaultSettings() {
   const Settings = require('./models/Settings');
   const defaults = {
     companyName: 'CheckZone',
+    // Default coordinates: Riyadh, Saudi Arabia (24.7136°N, 46.6753°E) — override via COMPANY_LAT/COMPANY_LNG env vars
     companyLat: parseFloat(process.env.COMPANY_LAT || '24.7136'),
     companyLng: parseFloat(process.env.COMPANY_LNG || '46.6753'),
     companyRadius: parseInt(process.env.COMPANY_RADIUS || '200'),

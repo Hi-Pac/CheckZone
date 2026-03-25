@@ -38,7 +38,10 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { name, deviceFingerprint, monthlySalary, position, branch } = req.body;
     if (!name) return res.status(400).json({ message: 'اسم الموظف مطلوب' });
-    const employee = new Employee({ name, deviceFingerprint, monthlySalary, position, branch });
+    if (monthlySalary !== undefined && (isNaN(monthlySalary) || Number(monthlySalary) < 0)) {
+      return res.status(400).json({ message: 'قيمة الراتب غير صحيحة' });
+    }
+    const employee = new Employee({ name, deviceFingerprint, monthlySalary: monthlySalary ? Number(monthlySalary) : 0, position, branch });
     await employee.save();
     res.status(201).json(employee);
   } catch (err) {

@@ -20,7 +20,7 @@ async function sendWhatsAppNotification(employeeName, type, time, date) {
   try {
     await axios.post(apiUrl, { token, to: phone, body: message });
   } catch (err) {
-    console.log('WhatsApp notification failed:', err.message);
+    console.log(`WhatsApp notification failed for ${employeeName} (${typeText}):`, err.message);
   }
 }
 

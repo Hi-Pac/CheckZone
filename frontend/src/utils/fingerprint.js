@@ -11,7 +11,9 @@ export async function getDeviceFingerprint() {
     ctx.font = '14px Arial';
     ctx.fillText('CheckZone 🔒', 2, 2);
     components.push(canvas.toDataURL());
-  } catch(e) {}
+  } catch(e) {
+    console.debug('Canvas fingerprinting unavailable:', e.message);
+  }
   const str = components.join('|');
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
