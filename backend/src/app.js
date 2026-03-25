@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -67,8 +73,8 @@ mongoose.connect(MONGODB_URI)
   })
   .catch(err => {
     console.error('MongoDB connection error:', err.message);
-    // Start server anyway for health checks
-    app.listen(PORT, () => console.log(`Server running on port ${PORT} (no DB)`));
+    console.error('Exiting: database connection is required.');
+    process.exit(1);
   });
 
 module.exports = app;

@@ -11,11 +11,10 @@ services:
     build: ./backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/checkzone
-      - JWT_SECRET=checkzone_jwt_secret_change_in_production
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin123
     depends_on:
       - mongodb
   
